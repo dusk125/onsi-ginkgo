@@ -38,7 +38,7 @@ In this section we cover installing Ginkgo, Gomega, and the `ginkgo` CLI.  We bo
 Ginkgo uses [go modules](https://go.dev/blog/using-go-modules).  To add Ginkgo to your project, assuming you have a `go.mod` file setup, just `go install` it:
 
 ```bash
-go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+go install github.com/onsi/ginkgo/v2/ginkgo
 go get github.com/onsi/gomega/...
 ```
 
@@ -1239,7 +1239,7 @@ Let's write a table spec to describe the Author name functions we tested earlier
 DescribeTable("Extracting the author's first and last name",
   func(author string, isValid bool, firstName string, lastName string) {
     book := &books.Book{
-      Title: "My Book"
+      Title: "My Book",
       Author: author,
       Pages: 10,
     }
@@ -1254,7 +1254,7 @@ DescribeTable("Extracting the author's first and last name",
 )
 ```
 
-`DescribeTable` takes a string description, a **spec closure** to run for each table entry, and a set of entries.  Each `Entry` takes a string description, followed by a list of parameters.  `DescribeTable` will generate a spec for each `Entry` and when the specs run, the `Entry` parameters will be passed to the spec closure and must match the types expected by the the spec closure.
+`DescribeTable` takes a string description, a **spec closure** to run for each table entry, and a set of entries.  Each `Entry` takes a string description, followed by a list of parameters.  `DescribeTable` will generate a spec for each `Entry` and when the specs run, the `Entry` parameters will be passed to the spec closure and must match the types expected by the spec closure.
 
 You'll be notified with a clear message at runtime if the parameter types don't match the spec closure signature.
 
@@ -1267,7 +1267,7 @@ To put it another way, the table test above is equivalent to:
 Describe("Extracting the author's first and last name", func() {
   It("When author has both names", func() {
     book := &books.Book{
-      Title: "My Book"
+      Title: "My Book",
       Author: "Victor Hugo",
       Pages: 10,
     }
@@ -1278,7 +1278,7 @@ Describe("Extracting the author's first and last name", func() {
 
   It("When author has one name", func() {
     book := &books.Book{
-      Title: "My Book"
+      Title: "My Book",
       Author: "Hugo",
       Pages: 10,
     }
@@ -1289,7 +1289,7 @@ Describe("Extracting the author's first and last name", func() {
 
   It("When author has a middle name", func() {
     book := &books.Book{
-      Title: "My Book"
+      Title: "My Book",
       Author: "Victor Marie Hugo",
       Pages: 10,
     }
@@ -1300,7 +1300,7 @@ Describe("Extracting the author's first and last name", func() {
 
   It("When author has no name", func() {
     book := &books.Book{
-      Title: "My Book"
+      Title: "My Book",
       Author: "",
       Pages: 10,
     }
@@ -2615,7 +2615,7 @@ There are a couple more flags that are verbosity-related but can be controlled i
 
 First, you can tell Ginkgo to always emit the `GinkgoWriter` output of every spec with `--always-emit-ginkgo-writer`.  This will emit `GinkgoWriter` output for both failed _and_ passing specs, regardless of verbosity setting.
 
-Second, you can tell Ginkgo to emit progress of a spec as Ginkgo runs each of its node closures.  You do this with `ginkgo --progress -v` (or `-vv`).  `--progress` will emit a message to the `GinkgoWriter` just before a node starts running.  By running with `-v` or `-vv` you can then stream the output to the `GinkgoWriter` immediately.  `--progress` was initially introduced to help debug specs that are stuck/hanging.  It is not longer necessary as Ginkgo's behavior during an interrupt has matured and now generally has enough information to help you identify where a spec is stuck.
+Second, you can tell Ginkgo to emit progress of a spec as Ginkgo runs each of its node closures.  You do this with `ginkgo --progress -v` (or `-vv`).  `--progress` will emit a message to the `GinkgoWriter` just before a node starts running.  By running with `-v` or `-vv` you can then stream the output to the `GinkgoWriter` immediately.  `--progress` was initially introduced to help debug specs that are stuck/hanging but is no longer strictly necessary as Ginkgo's behavior during an interrupt has matured and now generally has enough information to help you identify where a spec is stuck.  If you, nonetheless, want to run with `--progress` but want to suppress output of individual nodes (e.g. a top-level `ReportAfterEach` that always runs even if a spec is skipped) you can pass the `SuppressProgressOuput` decorator to the node in question.
 
 #### Other Settings
 Here are a grab bag of other settings:
@@ -2762,7 +2762,7 @@ You should be aware that when running in parallel, each parallel process will be
 /* === INVALID === */
 var reportFile *os.File
 BeforeSuite(func() {
-  reportFile = os.Open("report.custom")
+  reportFile = os.Create("report.custom")
 })
 
 ReportAfterEach(func(report SpecReport) {
@@ -2776,7 +2776,7 @@ you'll end up with multiple processes writing to the same file and the output wi
 `ReportAfterSuite` nodes behave similarly to `AfterSuite` and can be placed at the top-level of your suite (typically in the suite bootstrap file).  `ReportAfterSuite` nodes take a closure that accepts a single [`Report`]((https://pkg.go.dev/github.com/onsi/ginkgo/v2/types#Report)) argument:
 
 ```go
-var _ = ReportAfterSuite(func(report Report) {
+var _ = ReportAfterSuite("custom report", func(report Report) {
   // process report
 })
 ```
@@ -2790,10 +2790,10 @@ Finally, and most importantly, when running in parallel `ReportAfterSuite` **onl
 So, we can rewrite our invalid `ReportAfterEach` example from above into a valid `ReportAfterSuite` example:
 
 ```go
-ReportAfterSuite(func(report Report) {
-  f := os.Open("report.custom")
+ReportAfterSuite("custom report", func(report Report) {
+  f := os.Create("report.custom")
   for _, specReport := range report.SpecReports {
-    fmt.Fprintf(f, "%s | %s\n", report.FullText(), report.State)
+    fmt.Fprintf(f, "%s | %s\n", report.FullText(), specReport.State)
   }
   f.Close()
 })
@@ -3474,7 +3474,7 @@ Rather than an exhaustive/detailed review we'll simply walk through some common 
 
 Both `Eventually` and `Consistently` perform asynchronous assertions by polling the provided input.  In the case of `Eventually`, Gomega polls the input repeatedly until the matcher is satisfied - once that happens the assertion exits successfully and execution continues.  If the matcher is never satisfied `Eventually` will time out with a useful error message.  Both the timeout and polling interval are [configurable](https://onsi.github.io/gomega/#eventually).
 
-In the case of `Consistently`, Gomega polls the the input repeatedly and asserts the matcher is satisfied every time.  `Consistently` only exits early if a failure occurs - otherwise it continues polling until the specified interval elapses.  This is often the only way to assert that something "does not happen" in an asynchronous system.
+In the case of `Consistently`, Gomega polls the input repeatedly and asserts the matcher is satisfied every time.  `Consistently` only exits early if a failure occurs - otherwise it continues polling until the specified interval elapses.  This is often the only way to assert that something "does not happen" in an asynchronous system.
 
 `Eventually` and `Consistently` can accept three types of input.  You can pass in bare values and assert that some aspect of the value changes eventually.  This is most commonly done with Go channels or Gomega's 
 [`gbytes`](https://onsi.github.io/gomega/#gbytes-testing-streaming-buffers) and [`gexec`](https://onsi.github.io/gomega/#gexec-testing-external-processes) packages.  You can also pass in functions and assert that their return values `Eventually` or `Consistently` satisfy a matcher - we'll cover those later.  Lastly, you can pass in functions that take a `Gomega` argument - these allow you to make assertions within the function and are a way to assert that a series of assertions _eventually_ succeeds.  We'll cover _that_ later as well.  Let's look at these various input types through the lens of some concrete use-cases.
@@ -4368,6 +4368,19 @@ Describe("flaky tests", FlakeAttempts(3), func() {
 With this setup, `"is flaky"` and `"is also flaky"` will run up to 3 times.  `"is _really_ flaky"` will run up to 5 times.  `"is _not_ flaky"` will run only once.  Note that if multiple `FlakeAttempts` appear in a spec's hierarchy, the most deeply nested `FlakeAttempts` wins.  If multiple `FlakeAttempts` are passed into a given node, the last one wins.
 
 If `ginkgo --flake-attempts=N` is set the value passed in by the CLI will override all the decorated values.  Every test will now run up to `N` times.
+
+
+#### The SuppressProgressOutput Decorator
+
+When running with `ginkgo -v -progress` Ginkgo will emit information about each node just before it runs.   This information goes to the `GinkgoWriter` and straight to the console if using `-v`.  There are contexts when this can be overly noisy.  In particular, `ReportBeforeEach` and `ReportAfterEach` nodes always run, even when a spec is skipped.  This can make Ginkgo's output noise when running with `-v -progress` as each `Report*Each` node will be announced, even for skipped specs.
+
+The `SuppressProgressOutput` decorator allows you to disable progress reporting for a given node:
+
+```go
+ReportAfterEach(func(report SpecReport) {
+   //...
+}, SuppressProgressReporting)
+```
 
 ## Ginkgo CLI Overview
 

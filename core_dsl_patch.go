@@ -20,3 +20,7 @@ func GetFailer() *internal.Failer {
 func GetWriter() *internal.Writer {
 	return GinkgoWriter.(*internal.Writer)
 }
+
+func SetReporterConfig(r types.ReporterConfig) {
+	reporterConfig = r
+}
